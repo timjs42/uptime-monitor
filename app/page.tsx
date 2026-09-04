@@ -1,69 +1,230 @@
-import Image from "next/image";
+import {
+  getDashboardMonitors,
+  type DashboardMonitor,
+} from "@/lib/database/dashboard";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+function formatUptime(uptime: number | null) {
+  if (uptime === null) {
+    return "—";
+  }
+
+  return `${uptime.toFixed(2)}%`;
+}
+
+function formatLastChecked(checkedAt: string | null) {
+  if (!checkedAt) {
+    return "Never";
+  }
+
+  const differenceMs =
+    Date.now() - new Date(checkedAt).getTime();
+
+  const minutes = Math.floor(differenceMs / 60_000);
+
+  if (minutes < 1) {
+    return "Just now";
+  }
+
+  if (minutes === 1) {
+    return "1 minute ago";
+  }
+
+  if (minutes < 60) {
+    return `${minutes} minutes ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours === 1) {
+    return "1 hour ago";
+  }
+
+  return `${hours} hours ago`;
+}
+
+function getOverallStatus(monitors: DashboardMonitor[]) {
+  if (monitors.length === 0) {
+    return "unknown";
+  }
+
+  if (monitors.some((monitor) => monitor.status === "down")) {
+    return "down";
+  }
+
+  if (monitors.some((monitor) => monitor.status === "unknown")) {
+    return "unknown";
+  }
+
+  return "up";
+}
+
+function StatusIndicator({
+  status,
+}: {
+  status: DashboardMonitor["status"];
+}) {
+  const label =
+    status === "up"
+      ? "Operational"
+      : status === "down"
+        ? "Down"
+        : "Unknown";
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="flex items-center gap-2">
+      <span
+        className={`h-2.5 w-2.5 rounded-full ${
+          status === "up"
+            ? "bg-emerald-500"
+            : status === "down"
+              ? "bg-red-500"
+              : "bg-zinc-400"
+        }`}
+      />
+      <span className="text-sm font-medium text-zinc-700">
+        {label}
+      </span>
     </div>
+  );
+}
+
+export default async function Home() {
+  const monitors = await getDashboardMonitors();
+
+  const overallStatus = getOverallStatus(monitors);
+
+  const overallLabel =
+    overallStatus === "up"
+      ? "All systems operational"
+      : overallStatus === "down"
+        ? "Some systems are experiencing issues"
+        : "Monitoring status unavailable";
+
+  return (
+    <main className="min-h-screen bg-zinc-50 text-zinc-950">
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8">
+        <header className="mb-12">
+          <p className="mb-3 text-sm font-medium text-zinc-500">
+            System Status
+          </p>
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                Uptime Monitor
+              </h1>
+
+              <p className="mt-3 max-w-xl text-zinc-600">
+                Live availability and response metrics for monitored
+                services.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  overallStatus === "up"
+                    ? "bg-emerald-500"
+                    : overallStatus === "down"
+                      ? "bg-red-500"
+                      : "bg-zinc-400"
+                }`}
+              />
+
+              <span className="text-sm font-medium text-zinc-700">
+                {overallLabel}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          {monitors.length === 0 ? (
+            <div className="p-8">
+              <p className="text-sm text-zinc-600">
+                No active monitors configured.
+              </p>
+            </div>
+          ) : (
+            monitors.map((monitor, index) => (
+              <article
+                key={monitor.id}
+                className={`p-6 sm:p-8 ${
+                  index !== monitors.length - 1
+                    ? "border-b border-zinc-200"
+                    : ""
+                }`}
+              >
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {monitor.name}
+                    </h2>
+
+                    <a
+                      href={monitor.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-sm text-zinc-500 transition hover:text-zinc-900"
+                    >
+                      {monitor.url}
+                    </a>
+                  </div>
+
+                  <StatusIndicator status={monitor.status} />
+                </div>
+
+                <dl className="mt-8 grid grid-cols-2 gap-6 border-t border-zinc-100 pt-6 sm:grid-cols-4">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      Uptime · 24h
+                    </dt>
+                    <dd className="mt-2 text-lg font-semibold">
+                      {formatUptime(monitor.uptime24h)}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      Response
+                    </dt>
+                    <dd className="mt-2 text-lg font-semibold">
+                      {monitor.responseTimeMs !== null
+                        ? `${monitor.responseTimeMs} ms`
+                        : "—"}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      HTTP
+                    </dt>
+                    <dd className="mt-2 text-lg font-semibold">
+                      {monitor.statusCode ?? "—"}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      Last checked
+                    </dt>
+                    <dd className="mt-2 text-sm font-medium text-zinc-700">
+                      {formatLastChecked(monitor.checkedAt)}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          )}
+        </section>
+
+        <footer className="mt-6 flex flex-col gap-2 text-xs text-zinc-400 sm:flex-row sm:justify-between">
+          <span>Checks run every 5 minutes.</span>
+          <span>24-hour uptime based on recorded checks.</span>
+        </footer>
+      </div>
+    </main>
   );
 }
