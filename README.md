@@ -36,7 +36,7 @@ This project is designed to demonstrate:
 The application is split into four main responsibilities:
 
 1. **Scheduler**
-   GitHub Actions triggers the monitoring process every five minutes.
+    Supabase Cron triggers the monitoring process every five minutes by sending an authenticated request to the monitoring API.
 
 2. **Monitoring API**
    A protected Next.js API endpoint receives the scheduled request and checks each configured monitor.
@@ -50,10 +50,10 @@ The application is split into four main responsibilities:
 ### Data flow
 
 ```text
-GitHub Actions
+Supabase Cron
       |
       | every 5 minutes
-      V
+      v
 Next.js monitoring endpoint
       |
       +----> Website A
@@ -75,7 +75,7 @@ Next.js dashboard
 * **Database:** PostgreSQL
 * **Database Platform:** Supabase
 * **Deployment:** Vercel
-* **Scheduling:** GitHub Actions
+* **Scheduling:** Supabase Cron
 
 ## Monitoring Model
 
