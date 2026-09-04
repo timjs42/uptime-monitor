@@ -17,6 +17,11 @@ export type UptimeHistoryBucket = {
   checkCount: number;
 };
 
+export type ResponseTimePoint = {
+  checkedAt: string;
+  responseTimeMs: number;
+};
+
 export type DashboardMonitor = {
   id: string;
   name: string;
@@ -28,6 +33,7 @@ export type DashboardMonitor = {
   uptime24h: number | null;
   totalChecks24h: number;
   history24h: UptimeHistoryBucket[];
+  responseHistory24h: ResponseTimePoint[];
 };
 
 export async function getDashboardMonitors(): Promise<
@@ -152,6 +158,15 @@ export async function getDashboardMonitors(): Promise<
       },
     );
 
+    const responseHistory24h: ResponseTimePoint[] =
+      monitorChecks
+        .slice()
+        .reverse()
+        .map((check) => ({
+          checkedAt: check.checked_at,
+          responseTimeMs: check.response_time_ms,
+        }));
+
     return {
       id: monitor.id,
       name: monitor.name,
@@ -164,6 +179,7 @@ export async function getDashboardMonitors(): Promise<
       uptime24h,
       totalChecks24h: monitorChecks.length,
       history24h,
+      responseHistory24h,
     };
   });
 }

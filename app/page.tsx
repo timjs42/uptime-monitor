@@ -1,6 +1,7 @@
 import {
   getDashboardMonitors,
   type DashboardMonitor,
+  type ResponseTimePoint,
   type UptimeHistoryBucket,
 } from "@/lib/database/dashboard";
 
@@ -183,6 +184,132 @@ function UptimeHistory({
   );
 }
 
+function ResponseTimeChart({
+  points,
+}: {
+  points: ResponseTimePoint[];
+}) {
+  if (points.length < 2) {
+    return (
+      <div className="mt-8 border-t border-zinc-100 pt-6">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+          Response time · 24h
+        </p>
+
+        <p className="mt-4 text-sm text-zinc-500">
+          Not enough response-time data yet.
+        </p>
+      </div>
+    );
+  }
+
+  const width = 800;
+  const height = 180;
+
+  const paddingX = 8;
+  const paddingY = 12;
+
+  const responseTimes = points.map(
+    (point) => point.responseTimeMs,
+  );
+
+  const maxResponseTime = Math.max(...responseTimes);
+  const minResponseTime = Math.min(...responseTimes);
+
+  const range = Math.max(
+    maxResponseTime - minResponseTime,
+    1,
+  );
+
+  const coordinates = points.map(
+    (point, index) => {
+      const x =
+        paddingX +
+        (index / (points.length - 1)) *
+          (width - paddingX * 2);
+
+      const normalized =
+        (point.responseTimeMs - minResponseTime) /
+        range;
+
+      const y =
+        height -
+        paddingY -
+        normalized * (height - paddingY * 2);
+
+      return {
+        x,
+        y,
+      };
+    },
+  );
+
+  const path = coordinates
+    .map(
+      ({ x, y }, index) =>
+        `${index === 0 ? "M" : "L"} ${x} ${y}`,
+    )
+    .join(" ");
+
+  const averageResponseTime = Math.round(
+    responseTimes.reduce(
+      (total, value) => total + value,
+      0,
+    ) / responseTimes.length,
+  );
+
+  return (
+    <div className="mt-8 border-t border-zinc-100 pt-6">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+          Response time · 24h
+        </span>
+
+        <span className="text-xs text-zinc-400">
+          Avg {averageResponseTime} ms
+        </span>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-40 w-full"
+          role="img"
+          aria-label={`Response time over the last 24 hours. Average ${averageResponseTime} milliseconds.`}
+        >
+          <line
+            x1="0"
+            y1={height - paddingY}
+            x2={width}
+            y2={height - paddingY}
+            className="stroke-zinc-200"
+            strokeWidth="1"
+          />
+
+          <path
+            d={path}
+            fill="none"
+            className="stroke-zinc-900"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
+        <span>24h ago</span>
+
+        <span>
+          {minResponseTime}–{maxResponseTime} ms
+        </span>
+
+        <span>Now</span>
+      </div>
+    </div>
+  );
+}
+
 export default async function Home() {
   const monitors = await getDashboardMonitors();
 
@@ -322,6 +449,10 @@ export default async function Home() {
 
                 <UptimeHistory
                   history={monitor.history24h}
+                />
+
+                <ResponseTimeChart
+                  points={monitor.responseHistory24h}
                 />
               </article>
             ))
