@@ -1,6 +1,7 @@
 import {
   getDashboardMonitors,
   type DashboardMonitor,
+  type UptimeHistoryBucket,
 } from "@/lib/database/dashboard";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,9 @@ function formatLastChecked(checkedAt: string | null) {
   const differenceMs =
     Date.now() - new Date(checkedAt).getTime();
 
-  const minutes = Math.floor(differenceMs / 60_000);
+  const minutes = Math.floor(
+    differenceMs / 60_000,
+  );
 
   if (minutes < 1) {
     return "Just now";
@@ -41,19 +44,39 @@ function formatLastChecked(checkedAt: string | null) {
     return "1 hour ago";
   }
 
-  return `${hours} hours ago`;
+  if (hours < 24) {
+    return `${hours} hours ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days === 1) {
+    return "1 day ago";
+  }
+
+  return `${days} days ago`;
 }
 
-function getOverallStatus(monitors: DashboardMonitor[]) {
+function getOverallStatus(
+  monitors: DashboardMonitor[],
+): DashboardMonitor["status"] {
   if (monitors.length === 0) {
     return "unknown";
   }
 
-  if (monitors.some((monitor) => monitor.status === "down")) {
+  if (
+    monitors.some(
+      (monitor) => monitor.status === "down",
+    )
+  ) {
     return "down";
   }
 
-  if (monitors.some((monitor) => monitor.status === "unknown")) {
+  if (
+    monitors.some(
+      (monitor) => monitor.status === "unknown",
+    )
+  ) {
     return "unknown";
   }
 
@@ -83,6 +106,7 @@ function StatusIndicator({
               : "bg-zinc-400"
         }`}
       />
+
       <span className="text-sm font-medium text-zinc-700">
         {label}
       </span>
@@ -90,10 +114,80 @@ function StatusIndicator({
   );
 }
 
+function UptimeHistory({
+  history,
+}: {
+  history: UptimeHistoryBucket[];
+}) {
+  const downBuckets = history.filter(
+    (bucket) => bucket.status === "down",
+  ).length;
+
+  const unknownBuckets = history.filter(
+    (bucket) => bucket.status === "unknown",
+  ).length;
+
+  const description =
+    downBuckets > 0
+      ? `${downBuckets} intervals contained downtime during the last 24 hours.`
+      : unknownBuckets === history.length
+        ? "No monitoring data recorded during the last 24 hours."
+        : "No downtime recorded during available monitoring data.";
+
+  return (
+    <div className="mt-8 border-t border-zinc-100 pt-6">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+          Last 24 hours
+        </span>
+
+        <span className="text-xs text-zinc-400">
+          {description}
+        </span>
+      </div>
+
+      <div
+        className="flex h-8 gap-0.5"
+        role="img"
+        aria-label={description}
+      >
+        {history.map((bucket, index) => {
+          const label =
+            bucket.status === "up"
+              ? "Operational"
+              : bucket.status === "down"
+                ? "Downtime recorded"
+                : "No data";
+
+          return (
+            <div
+              key={index}
+              title={`${label} · ${bucket.checkCount} checks`}
+              className={`min-w-0 flex-1 rounded-sm ${
+                bucket.status === "up"
+                  ? "bg-emerald-500"
+                  : bucket.status === "down"
+                    ? "bg-red-500"
+                    : "bg-zinc-200"
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex justify-between text-xs text-zinc-400">
+        <span>24h ago</span>
+        <span>Now</span>
+      </div>
+    </div>
+  );
+}
+
 export default async function Home() {
   const monitors = await getDashboardMonitors();
 
-  const overallStatus = getOverallStatus(monitors);
+  const overallStatus =
+    getOverallStatus(monitors);
 
   const overallLabel =
     overallStatus === "up"
@@ -117,8 +211,8 @@ export default async function Home() {
               </h1>
 
               <p className="mt-3 max-w-xl text-zinc-600">
-                Live availability and response metrics for monitored
-                services.
+                Live availability and response metrics
+                for monitored services.
               </p>
             </div>
 
@@ -173,7 +267,9 @@ export default async function Home() {
                     </a>
                   </div>
 
-                  <StatusIndicator status={monitor.status} />
+                  <StatusIndicator
+                    status={monitor.status}
+                  />
                 </div>
 
                 <dl className="mt-8 grid grid-cols-2 gap-6 border-t border-zinc-100 pt-6 sm:grid-cols-4">
@@ -181,8 +277,11 @@ export default async function Home() {
                     <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                       Uptime · 24h
                     </dt>
+
                     <dd className="mt-2 text-lg font-semibold">
-                      {formatUptime(monitor.uptime24h)}
+                      {formatUptime(
+                        monitor.uptime24h,
+                      )}
                     </dd>
                   </div>
 
@@ -190,6 +289,7 @@ export default async function Home() {
                     <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                       Response
                     </dt>
+
                     <dd className="mt-2 text-lg font-semibold">
                       {monitor.responseTimeMs !== null
                         ? `${monitor.responseTimeMs} ms`
@@ -201,6 +301,7 @@ export default async function Home() {
                     <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                       HTTP
                     </dt>
+
                     <dd className="mt-2 text-lg font-semibold">
                       {monitor.statusCode ?? "—"}
                     </dd>
@@ -210,19 +311,32 @@ export default async function Home() {
                     <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
                       Last checked
                     </dt>
+
                     <dd className="mt-2 text-sm font-medium text-zinc-700">
-                      {formatLastChecked(monitor.checkedAt)}
+                      {formatLastChecked(
+                        monitor.checkedAt,
+                      )}
                     </dd>
                   </div>
                 </dl>
+
+                <UptimeHistory
+                  history={monitor.history24h}
+                />
               </article>
             ))
           )}
         </section>
 
         <footer className="mt-6 flex flex-col gap-2 text-xs text-zinc-400 sm:flex-row sm:justify-between">
-          <span>Checks run every 5 minutes.</span>
-          <span>24-hour uptime based on recorded checks.</span>
+          <span>
+            Checks run every 5 minutes.
+          </span>
+
+          <span>
+            24-hour uptime based on recorded
+            checks.
+          </span>
         </footer>
       </div>
     </main>
