@@ -1,4 +1,5 @@
 # Uptime Monitor
+Live site: [uptime monitor](https://uptime-monitor-gamma-three.vercel.app/)
 
 A full-stack uptime monitoring dashboard built with Next.js.
 
